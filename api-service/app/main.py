@@ -1,4 +1,5 @@
 """Главный модуль FastAPI приложения"""
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +21,9 @@ async def lifespan(app: FastAPI):
     try:
         kafka_producer.connect()
     except Exception as e:
-        logger.warning(f"Kafka connection failed: {e}. Service will continue without Kafka.")
+        logger.warning(
+            f"Kafka connection failed: {e}. Service will continue without Kafka."
+        )
 
     yield
 
@@ -36,7 +39,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS middleware
@@ -58,7 +61,7 @@ async def root():
     return {
         "status": "ok",
         "service": "Restaurant Booking System API",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
 
 

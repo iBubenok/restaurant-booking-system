@@ -1,4 +1,5 @@
 """API эндпоинты для бронирований"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -18,11 +19,10 @@ router = APIRouter(prefix="/bookings", tags=["Bookings"])
     response_model=BookingResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Создание нового бронирования",
-    description="Создает новое бронирование и отправляет событие в Kafka для обработки"
+    description="Создает новое бронирование и отправляет событие в Kafka для обработки",
 )
 async def create_booking(
-    booking_data: BookingCreate,
-    db: AsyncSession = Depends(get_db)
+    booking_data: BookingCreate, db: AsyncSession = Depends(get_db)
 ):
     """
     Создание нового бронирования столика.
@@ -36,7 +36,7 @@ async def create_booking(
         restaurant_id=booking_data.restaurant_id,
         booking_datetime=booking_data.booking_datetime,
         guests_count=booking_data.guests_count,
-        status=BookingStatus.CREATED
+        status=BookingStatus.CREATED,
     )
 
     db.add(booking)
@@ -53,8 +53,8 @@ async def create_booking(
                 "booking_id": booking.id,
                 "restaurant_id": booking.restaurant_id,
                 "booking_datetime": booking.booking_datetime.isoformat(),
-                "guests_count": booking.guests_count
-            }
+                "guests_count": booking.guests_count,
+            },
         )
     except Exception as e:
         logger.error(f"Failed to send Kafka event: {e}")
@@ -67,12 +67,9 @@ async def create_booking(
     "/{booking_id}",
     response_model=BookingResponse,
     summary="Получение информации о бронировании",
-    description="Возвращает информацию о бронировании по его ID"
+    description="Возвращает информацию о бронировании по его ID",
 )
-async def get_booking(
-    booking_id: int,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_booking(booking_id: int, db: AsyncSession = Depends(get_db)):
     """
     Получение информации о бронировании.
 
@@ -84,7 +81,7 @@ async def get_booking(
     if not booking:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Бронирование с ID {booking_id} не найдено"
+            detail=f"Бронирование с ID {booking_id} не найдено",
         )
 
     return booking

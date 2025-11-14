@@ -1,9 +1,11 @@
 """Pydantic схемы для ресторанов"""
+
 from pydantic import BaseModel, ConfigDict
 
 
 class RestaurantResponse(BaseModel):
     """Схема ответа с информацией о ресторане"""
+
     id: int
     name: str
     address: str
