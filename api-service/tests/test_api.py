@@ -25,31 +25,33 @@ async def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 async def db_session():
     """Фикстура для тестовой БД"""
+    # Создаем таблицы
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    async with test_session_maker() as session:
-        yield session
+    yield
 
+    # Удаляем таблицы
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture(scope="function")
-async def test_restaurant(db_session: AsyncSession):
+async def test_restaurant():
     """Фикстура для создания тестового ресторана"""
-    restaurant = Restaurant(
-        name="Тестовый ресторан",
-        address="ул. Тестовая, д. 1",
-        description="Тестовое описание"
-    )
-    db_session.add(restaurant)
-    await db_session.commit()
-    await db_session.refresh(restaurant)
-    return restaurant
+    async with test_session_maker() as session:
+        restaurant = Restaurant(
+            name="Тестовый ресторан",
+            address="ул. Тестовая, д. 1",
+            description="Тестовое описание"
+        )
+        session.add(restaurant)
+        await session.commit()
+        await session.refresh(restaurant)
+        return restaurant
 
 
 @pytest.mark.asyncio
@@ -74,25 +76,27 @@ async def test_create_booking(test_restaurant):
 
 
 @pytest.mark.asyncio
-async def test_get_booking(test_restaurant, db_session):
+async def test_get_booking(test_restaurant):
     """Тест получения информации о бронировании"""
     # Создаем бронирование
-    booking = Booking(
-        restaurant_id=test_restaurant.id,
-        booking_datetime=datetime.utcnow() + timedelta(days=1),
-        guests_count=2,
-        status=BookingStatus.CONFIRMED
-    )
-    db_session.add(booking)
-    await db_session.commit()
-    await db_session.refresh(booking)
+    async with test_session_maker() as session:
+        booking = Booking(
+            restaurant_id=test_restaurant.id,
+            booking_datetime=datetime.utcnow() + timedelta(days=1),
+            guests_count=2,
+            status=BookingStatus.CONFIRMED
+        )
+        session.add(booking)
+        await session.commit()
+        await session.refresh(booking)
+        booking_id = booking.id
 
     async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.get(f"/bookings/{booking.id}")
+        response = await client.get(f"/bookings/{booking_id}")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == booking.id
+        assert data["id"] == booking_id
         assert data["status"] == "CONFIRMED"
 
 
