@@ -1,4 +1,5 @@
 """Kafka Consumer для обработки событий бронирования"""
+
 import asyncio
 import json
 import logging
@@ -10,8 +11,7 @@ from app.database import async_session_maker
 from app.services.booking_service import BookingService
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -28,11 +28,11 @@ class BookingEventConsumer:
         try:
             self.consumer = KafkaConsumer(
                 settings.KAFKA_TOPIC,
-                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS.split(','),
+                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS.split(","),
                 group_id=settings.KAFKA_GROUP_ID,
-                auto_offset_reset='earliest',
+                auto_offset_reset="earliest",
                 enable_auto_commit=True,
-                value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
             )
             logger.info(f"Connected to Kafka: {settings.KAFKA_BOOTSTRAP_SERVERS}")
             logger.info(f"Subscribed to topic: {settings.KAFKA_TOPIC}")
