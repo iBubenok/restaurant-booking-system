@@ -1,37 +1,58 @@
 """Unit-тесты для BookingService"""
+
 import pytest
+import pytest_asyncio
 from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    create_async_engine,
+    async_sessionmaker,
+)
 from app.database import Base
 from app.models import Restaurant, Booking, BookingStatus
 from app.services.booking_service import BookingService
 
 # Тестовая база данных
-TEST_DATABASE_URL = "postgresql+asyncpg://booking_user:booking_pass@localhost:5432/booking_db_test"
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-test_session_maker = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+TEST_DATABASE_URL = (
+    "postgresql+asyncpg://booking_user:booking_pass@localhost:5432/booking_db_test"
+)
 
 
-@pytest.fixture(scope="function")
-async def db_session():
-    """Фикстура для тестовой БД"""
-    async with test_engine.begin() as conn:
+@pytest_asyncio.fixture(scope="function")
+async def test_engine():
+    """Фикстура для создания тестового engine"""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=None)
+
+    # Создаем таблицы
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    yield engine
+
+    # Удаляем таблицы
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_session_maker(test_engine):
+    """Фикстура для создания session maker"""
+    return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session(test_session_maker):
+    """Фикстура для тестовой БД сессии"""
     async with test_session_maker() as session:
         yield session
 
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
-
-@pytest.fixture(scope="function")
-async def test_restaurant(db_session: AsyncSession):
+@pytest_asyncio.fixture(scope="function")
+async def test_restaurant(db_session):
     """Фикстура для создания тестового ресторана"""
-    restaurant = Restaurant(
-        name="Тестовый ресторан",
-        address="ул. Тестовая, д. 1"
-    )
+    restaurant = Restaurant(name="Тестовый ресторан", address="ул. Тестовая, д. 1")
     db_session.add(restaurant)
     await db_session.commit()
     await db_session.refresh(restaurant)
@@ -44,9 +65,7 @@ async def test_check_availability_no_conflicts(test_restaurant, db_session):
     booking_datetime = datetime.utcnow() + timedelta(days=1)
 
     is_available = await BookingService.check_availability(
-        db_session,
-        test_restaurant.id,
-        booking_datetime
+        db_session, test_restaurant.id, booking_datetime
     )
 
     assert is_available is True
@@ -62,16 +81,14 @@ async def test_check_availability_with_conflict(test_restaurant, db_session):
         restaurant_id=test_restaurant.id,
         booking_datetime=booking_datetime,
         guests_count=2,
-        status=BookingStatus.CONFIRMED
+        status=BookingStatus.CONFIRMED,
     )
     db_session.add(existing_booking)
     await db_session.commit()
 
     # Проверяем доступность на то же время
     is_available = await BookingService.check_availability(
-        db_session,
-        test_restaurant.id,
-        booking_datetime
+        db_session, test_restaurant.id, booking_datetime
     )
 
     assert is_available is False
@@ -87,7 +104,7 @@ async def test_process_booking_confirmed(test_restaurant, db_session):
         restaurant_id=test_restaurant.id,
         booking_datetime=booking_datetime,
         guests_count=4,
-        status=BookingStatus.CREATED
+        status=BookingStatus.CREATED,
     )
     db_session.add(booking)
     await db_session.commit()
@@ -110,7 +127,7 @@ async def test_process_booking_rejected(test_restaurant, db_session):
         restaurant_id=test_restaurant.id,
         booking_datetime=booking_datetime,
         guests_count=2,
-        status=BookingStatus.CONFIRMED
+        status=BookingStatus.CONFIRMED,
     )
     db_session.add(existing_booking)
     await db_session.commit()
@@ -120,7 +137,7 @@ async def test_process_booking_rejected(test_restaurant, db_session):
         restaurant_id=test_restaurant.id,
         booking_datetime=booking_datetime,
         guests_count=4,
-        status=BookingStatus.CREATED
+        status=BookingStatus.CREATED,
     )
     db_session.add(new_booking)
     await db_session.commit()
