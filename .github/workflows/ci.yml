@@ -100,9 +100,9 @@ jobs:
 
     - name: Сборка Docker образов
       run: |
-        docker-compose build api-service
-        docker-compose build booking-service
+        docker compose build api-service
+        docker compose build booking-service
 
     - name: Проверка конфигурации Docker Compose
       run: |
-        docker-compose config
+        docker compose config
